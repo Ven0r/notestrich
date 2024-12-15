@@ -15,10 +15,12 @@ jobs:
       - name: Build and push Docker image
         run: |
           docker build --no-cache -t ${{ secrets.DOCKER_USERNAME }}/notestrich-image:latest .
-          docker tag ${{ secrets.DOCKER_USERNAME }}/notestrich-image:$(date +'%Y%m%d%H%M%S')
           docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+          TIMESTAMP=$(date +'%Y%m%d%H%M%S')
+          docker tag ${{ secrets.DOCKER_USERNAME }}/notestrich-image:latest ${{ secrets.DOCKER_USERNAME }}/notestrich-image:$TIMESTAMP
           docker push ${{ secrets.DOCKER_USERNAME }}/notestrich-image:latest
-          docker push ${{ secrets.DOCKER_USERNAME }}/notestrich-image:$(date +'%Y%m%d%H%M%S')
+          docker push ${{ secrets.DOCKER_USERNAME }}/notestrich-image:$TIMESTAMP
+
 
   deploy:
     needs: build-and-push
