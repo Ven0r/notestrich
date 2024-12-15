@@ -3,12 +3,45 @@ import { SimplePool } from 'nostr-tools';
 export class NostrClient {
     private pool = new SimplePool();
     private relays: string[] = [];
+    private worker: Worker | null = null;
 
     async connectToRelays(relayUrls: string[]): Promise<void> {
         this.relays = relayUrls;
         for (const url of relayUrls) {
             this.pool.ensureRelay(url);
             console.log(`Ensured relay connection: ${url}`);
+        }
+    }
+
+    constructor() {
+        if (typeof window !== 'undefined') {
+            // Initialize the worker only in a browser environment
+            this.worker = new Worker(new URL('./relayWorker.js', import.meta.url));
+        }
+    }
+
+    connectToRelaysWithWorker(relayUrls: string[]): Promise<any[]> {
+        if (!this.worker) {
+            return Promise.reject(new Error("Web Worker is not available in this environment."));
+        }
+
+        return new Promise((resolve, reject) => {
+            this.worker.onmessage = function(event) {
+                resolve(event.data); // Return the results from the worker
+            };
+            this.worker.onerror = function(error) {
+                reject(error);
+            };
+            this.worker.postMessage(relayUrls); // Send relay URLs to the worker
+        });
+    }
+
+    async connectToRelays(relayUrls: string[]): Promise<void> {
+        try {
+            const results = await this.connectToRelaysWithWorker(relayUrls);
+            results.forEach(result => console.log(result.status));
+        } catch (error) {
+            console.error("Error connecting to relays:", error);
         }
     }
 
@@ -64,28 +97,6 @@ export class NostrClient {
         } catch (err) {
             console.error('Failed to publish to any relay:', err);
         }
-    }
-
-    async fetchRelays(pubkey: string): Promise<string[]> {
-      const relays: string[] = [];
-      this.subscribeToEvents({
-          kinds: [10002], // kind 10002 for relay information
-          authors: [pubkey],
-      }, (event) => {
-          const relayUrls = event.tags
-              .filter(tag => tag[0] === 'r')
-              .map(tag => tag[1]);
-          relays.push(...relayUrls);
-    });
-
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Adjust timeout as needed
-    return relays;
-}
-
-
-    closeAllRelays() {
-        this.pool.close();
-        console.log('Closed all relay connections.');
     }
 }
 
