@@ -24,13 +24,16 @@ COPY --from=build /app/build /usr/share/nginx/html
 
 # Ensure necessary directories exist and set proper permissions
 RUN mkdir -p /var/cache/nginx /var/run/nginx \
-    && chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/run/nginx
+  && chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/run/nginx
 
 # Remove the default NGINX configuration file
 RUN rm /etc/nginx/conf.d/default.conf
 
 # Copy your custom NGINX configuration file
 COPY nginx.conf /etc/nginx/nginx.conf
+
+# Add a health check to verify that NGINX is serving the app
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s CMD curl -f http://localhost:8080 || exit 1
 
 # Start NGINX
 CMD ["nginx", "-g", "daemon off;"]
