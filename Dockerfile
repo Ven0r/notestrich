@@ -32,9 +32,6 @@ RUN rm /etc/nginx/conf.d/default.conf
 # Copy your custom NGINX configuration file
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Add a health check to verify that NGINX is serving the app
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s CMD curl -f http://localhost:8080 || exit 1
-
 # Start NGINX
 CMD ["nginx", "-g", "daemon off;"]
 
