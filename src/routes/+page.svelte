@@ -3,6 +3,5 @@
 		<h1 class="text-9xl text-purple-600" style="font-family: 'Ostrich Sans', sans-serif;">
 			Notestrich
 		</h1>
-		<p class="text-xl">Coming Soon</p>
 	</div>
 </div>
