@@ -1,5 +1,6 @@
 <script lang="ts">
-	export let pubkey: string;
+	export let name: string;
+	export let picture: string;
 	export let content: string;
 	export let createdAt: number;
 
@@ -23,10 +24,11 @@
 </script>
 
 <div class="feed-item">
-	<p>
-		<span class="pubkey">{pubkey}</span>
+	<div class="user-info">
+		<img src={picture} alt="{name}'s picture" class="profile-picture" />
+		<span class="name">{name}</span>
 		<span class="timestamp">({timeAgo(createdAt)})</span>
-	</p>
+	</div>
 	<p>{content}</p>
 </div>
 
@@ -38,12 +40,23 @@
 		border-radius: 5px;
 		background: #2d3748;
 	}
-	.pubkey {
+	.user-info {
+		display: flex;
+		align-items: center;
+		margin-bottom: 8px;
+	}
+	.profile-picture {
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		margin-right: 10px;
+	}
+	.name {
 		font-weight: bold;
+		margin-right: 8px;
 	}
 	.timestamp {
 		color: #a0aec0;
 		font-size: 0.875rem;
-		margin-left: 8px;
 	}
 </style>
