@@ -1,9 +1,9 @@
 module.exports = {
-  content: ['./src/**/*.{html,svelte,js,ts}'],
+  content: ['./src/**/*.{html,js,svelte,ts}'], // Ensure correct file paths
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        'Ostrich_Sans': ["'Ostrich Sans'", 'sans-serif'],
       },
     },
   },

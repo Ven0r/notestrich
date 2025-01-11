@@ -7,6 +7,7 @@
 
 	let isLoggedIn = false;
 	let publicKey: string | null = null;
+	let displayName: string = 'Unknown'; // Default to "Unknown"
 	let feed = [];
 	const relayUrl = 'wss://eden.nostr.land/';
 
@@ -25,13 +26,13 @@
 			isLoggedIn = true;
 			console.log('Logged in with public key:', publicKey);
 
-			// Initialize services
 			nostrRelay = new NostrRelay(relayUrl, handleEvent);
 			metadataService = new NostrMetadata(nostrRelay);
 			feedManager = new FeedManager(metadataService);
 
 			nostrRelay.connect();
-			await nostrRelay.waitForConnection(); // Wait for WebSocket to connect
+			await nostrRelay.waitForConnection();
+
 			nostrRelay.subscribe('feed', { kinds: [1], since: Math.floor(Date.now() / 1000) - 3600 });
 		} catch (error) {
 			console.error('NIP-07 Login failed:', error);
@@ -59,9 +60,9 @@
 	});
 </script>
 
-<div class="min-h-screen flex items-center justify-center bg-slate-800 text-white">
+<div class="layout">
 	{#if !isLoggedIn}
-		<div class="text-center">
+		<div class="text-center w-full">
 			<h1 class="text-9xl text-purple-600" style="font-family: 'Ostrich Sans', sans-serif;">
 				Notestrich
 			</h1>
@@ -73,24 +74,59 @@
 			</button>
 		</div>
 	{:else}
-		<div class="text-center w-full max-w-screen-lg px-4">
-			<h1 class="text-5xl text-purple-600" style="font-family: 'Ostrich Sans', sans-serif;">N</h1>
-			<p class="text-xl mt-4">Logged in as: {publicKey}</p>
-			<div class="mt-8">
-				<h2 class="text-3xl">Feed</h2>
-				{#if feed.length > 0}
-					{#each feed as item}
-						<FeedItem
-							name={item.name}
-							picture={item.picture}
-							content={item.content}
-							createdAt={item.createdAt}
-						/>
-					{/each}
-				{:else}
-					<p class="text-gray-400">No events yet...</p>
-				{/if}
-			</div>
+		<div class="left-pane">
+			<h1 class="feed-title">N</h1>
+			<p>Logged in as: {publicKey}</p>
 		</div>
+		<div class="middle-pane">
+			<h2 class="text-3xl text-purple-600" style="font-family: 'Ostrich Sans', sans-serif;">
+				Feed
+			</h2>
+			{#if feed.length > 0}
+				{#each feed as item}
+					<FeedItem
+						class="text-6xl"
+						name={item.name}
+						picture={item.picture}
+						content={item.content}
+						createdAt={item.createdAt}
+					/>
+				{/each}
+			{:else}
+				<p class="text-gray-400">No events yet...</p>
+			{/if}
+		</div>
+		<div class="right-pane"></div>
 	{/if}
 </div>
+
+<style>
+	.layout {
+		display: flex;
+		height: 100vh;
+		background-color: #1e293b; /* Slate 800 */
+		color: white;
+	}
+	.left-pane {
+		width: 15%;
+		padding: 1rem;
+		text-align: center;
+		background-color: #111827; /* Slightly darker */
+	}
+	.middle-pane {
+		flex-grow: 1;
+		padding: 1rem;
+		overflow-y: auto;
+	}
+	.right-pane {
+		width: 20%;
+		padding: 1rem;
+		background-color: #111827; /* Slightly darker */
+	}
+	.feed-title {
+		font-family: 'Ostrich Sans', sans-serif;
+		font-size: 3rem;
+		color: #8b5cf6; /* Purple 600 */
+		margin-bottom: 1rem;
+	}
+</style>

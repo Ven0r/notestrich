@@ -1,11 +1,45 @@
 <script lang="ts">
-	// Props
+	import { onMount } from 'svelte';
 	export let name: string;
 	export let picture: string;
 	export let content: string;
 	export let createdAt: number;
 
-	// "Time ago" helper function in the same file
+	// Extract the first image URL from the content
+	let imageUrl: string | null = null;
+	let displayContent: string = ''; // local variable for the final text
+	let youtubeVideoId: string | null = null;
+
+	const youtubeRegex =
+		/(?:https?:\/\/)?(?:youtu\.be\/|(?:www\.)?youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/;
+
+	onMount(() => {
+		// Copy 'content' so we don't mutate the exported prop.
+		displayContent = content;
+		console.log('content:', content);
+
+		const ytMatch = displayContent.match(youtubeRegex);
+		if (ytMatch) {
+			youtubeVideoId = ytMatch[1];
+			// Optionally remove the link from the displayed text:
+			displayContent = displayContent.replace(youtubeRegex, '').trim();
+		}
+
+		// Extract the first image URL from the content using regex
+		const urlMatch = displayContent.match(
+			/(https?:\/\/[a-zA-Z0-9$\-_.+!*'(),%\/:@&=]+(?:\.(?:png|jpg|jpeg|gif|webp|svg)))/i
+		);
+
+		if (urlMatch) {
+			imageUrl = urlMatch[0];
+			displayContent = displayContent.replace(imageUrl, '').trim();
+		}
+
+		// Debug
+		console.log('imageUrl:', imageUrl);
+	});
+
+	// "Time ago" helper function
 	const timeAgo = (timestamp: number): string => {
 		if (!timestamp || isNaN(timestamp)) {
 			return 'Unknown time';
@@ -32,19 +66,40 @@
 	};
 </script>
 
-<div class="feed-item">
+<div class="feed-item feed-item-wrapper">
 	<div class="user-info">
 		<img src={picture} alt="{name}'s picture" class="profile-picture" />
 		<span class="name">{name}</span>
 		<span class="timestamp">({timeAgo(createdAt)})</span>
 	</div>
-	<p>{content}</p>
+	<p class="content">{displayContent}</p>
+
+	{#if imageUrl}
+		<div class="image-container">
+			<img src={imageUrl} alt="Attached to the note" class="attached-image" loading="lazy" />
+		</div>
+	{/if}
+
+	{#if youtubeVideoId}
+		<div class="youtube-container">
+			<iframe
+				width="560"
+				height="315"
+				src="https://www.youtube.com/embed/{youtubeVideoId}"
+				frameborder="0"
+				title="Youtube Video"
+				allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+				allowfullscreen
+			></iframe>
+		</div>
+	{/if}
 </div>
 
 <style>
 	.feed-item {
 		border: 1px solid #4a5568;
-		padding: 10px;
+		padding: 20px;
+		margin-top: 10px;
 		margin-bottom: 10px;
 		border-radius: 5px;
 		background: #2d3748;
@@ -67,5 +122,30 @@
 	.timestamp {
 		color: #a0aec0;
 		font-size: 0.875rem;
+	}
+	.image-container {
+		margin-top: 10px;
+		text-align: center;
+	}
+	.attached-image {
+		width: 100%;
+		max-height: 300px;
+		object-fit: cover;
+		border-radius: 5px;
+		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+	}
+	.youtube-container {
+		margin-top: 10px;
+		position: relative;
+		padding-bottom: 56.25%; /* 16:9 ratio */
+		height: 0;
+	}
+
+	.youtube-container iframe {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		left: 0;
+		top: 0;
 	}
 </style>
