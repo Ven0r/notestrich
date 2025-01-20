@@ -73,11 +73,70 @@ export class NostrRelay {
     }
   }
 
+  unsubscribe(subscriptionId: string) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      console.log(`Unsubscribing from ID: ${subscriptionId}`);
+      this.ws.send(JSON.stringify(['CLOSE', subscriptionId]));
+    }
+  }
 
   close() {
     if (this.ws) {
       this.ws.close();
     }
   }
-}
 
+  /**
+     * One-time metadata fetch
+     */
+  async fetchMetadataOnce(pubkey: string): Promise<{ name: string; picture: string } | null> {
+    await this.waitForConnection();
+
+    return new Promise((resolve) => {
+      const subscriptionId = `metadata-once-${Date.now()}`;
+      let finished = false;
+
+      // Subscribe for kind:0 events for this pubkey
+      this.subscribe(subscriptionId, {
+        kinds: [0],
+        authors: [pubkey],
+        limit: 1,
+      });
+
+      const handleSingleEvent = (event: any) => {
+        // Only handle if it matches our subscription ID from the relay
+        // Some relays put subscriptionId in data[1], so you might see that above in onmessage
+        // For simplicity, we assume we can filter by event kind/pubkey here
+        if (event.kind === 0 && event.pubkey === pubkey && !finished) {
+          finished = true;
+          const content = JSON.parse(event.content);
+          const metadata = {
+            name: content.name || 'Unknown',
+            picture: content.picture || '/default-profile.jpg',
+          };
+
+          // Unsubscribe immediately
+          this.unsubscribe(subscriptionId);
+          resolve(metadata);
+        }
+      };
+
+      // Temporary callback wrapper
+      const originalCallback = this.onEventCallback;
+      this.onEventCallback = (event: any) => {
+        handleSingleEvent(event);
+        // Also call the original
+        originalCallback(event);
+      };
+
+      // Fallback in case no metadata event is found
+      setTimeout(() => {
+        if (!finished) {
+          console.log('No metadata found within 10s, unsubscribing...');
+          this.unsubscribe(subscriptionId);
+          resolve(null);
+        }
+      }, 10000);
+    });
+  }
+}

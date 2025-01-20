@@ -16,7 +16,6 @@
 	onMount(() => {
 		// Copy 'content' so we don't mutate the exported prop.
 		displayContent = content;
-		console.log('content:', content);
 
 		const ytMatch = displayContent.match(youtubeRegex);
 		if (ytMatch) {
@@ -34,9 +33,6 @@
 			imageUrl = urlMatch[0];
 			displayContent = displayContent.replace(imageUrl, '').trim();
 		}
-
-		// Debug
-		console.log('imageUrl:', imageUrl);
 	});
 
 	// "Time ago" helper function

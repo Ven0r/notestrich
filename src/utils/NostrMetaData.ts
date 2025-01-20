@@ -13,7 +13,7 @@ export class NostrMetadata {
       return this.metadataCache[pubkey];
     }
 
-    console.log(`Fetching metadata for pubkey: ${pubkey}`);
+    //console.log(`Fetching metadata for pubkey: ${pubkey}`);
     this.relay.subscribe(`metadata-${pubkey}`, {
       kinds: [0],
       authors: [pubkey],
