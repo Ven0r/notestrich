@@ -7,23 +7,12 @@
 
 	let isLoggedIn = false;
 	let publicKey: string | null = null;
-	let userName = 'Unknown';
-	let userPicture = '/default-profile.jpg';
-
 	let feed = [];
-	const relayUrl = 'wss://nostr.wine/';
+	const relayUrl = 'wss://nostr.land/';
 
 	let nostrRelay: NostrRelay;
 	let metadataService: NostrMetadata;
 	let feedManager: FeedManager;
-
-	function handleEvent(event: any) {
-		if (event.kind === 1) {
-			feedManager.addNote(event);
-			feed = feedManager.getFeed();
-		}
-		// If you want to handle kind:0 in the general callback, you can do that here as well.
-	}
 
 	const loginWithNostr = async () => {
 		if (!window.nostr) {
@@ -43,24 +32,24 @@
 			nostrRelay.connect();
 			await nostrRelay.waitForConnection();
 
-			// 1) Immediately fetch metadata once
-			const metadata = await nostrRelay.fetchMetadataOnce(publicKey);
-			if (metadata) {
-				userName = metadata.name;
-				userPicture = metadata.picture;
-				console.log('Fetched metadata:', metadata);
-			} else {
-				console.log('No metadata found for pubkey:', publicKey);
-			}
-
-			// 2) Subscribe to feed (kind:1) after we grab user metadata
-			nostrRelay.subscribe('feed', {
-				kinds: [1],
-				since: Math.floor(Date.now() / 1000) - 3600
-			});
+			nostrRelay.subscribe('feed', { kinds: [1], since: Math.floor(Date.now() / 1000) - 3600 });
 		} catch (error) {
 			console.error('NIP-07 Login failed:', error);
 		}
+	};
+
+	const handleEvent = (event: any) => {
+		if (event.kind === 0) {
+			metadataService.updateMetadata(event.pubkey, {
+				name: JSON.parse(event.content).name || 'Unknown',
+				picture: JSON.parse(event.content).picture || '/default-profile.jpg'
+			});
+			feedManager.processPendingNotes(event.pubkey);
+		} else if (event.kind === 1) {
+			feedManager.addNote(event);
+		}
+
+		feed = feedManager.getFeed();
 	};
 
 	onMount(() => {
@@ -86,13 +75,7 @@
 	{:else}
 		<div class="left-pane">
 			<h1 class="feed-title">N</h1>
-			<!-- Display user info -->
-			<img
-				src={userPicture}
-				alt="User Pic"
-				style="width: 80px; height: 80px; border-radius: 50%;"
-			/>
-			<p>Logged in as: {userName}</p>
+			<p>Logged in as: {metadataService.name}</p>
 		</div>
 		<div class="middle-pane">
 			<h2 class="text-3xl text-purple-600" style="font-family: 'Ostrich Sans', sans-serif;">

@@ -24,6 +24,7 @@ export class NostrRelay {
 
     this.ws.onmessage = (message) => {
       const data = JSON.parse(message.data);
+      console.log('Raw message from relay:', data);
       if (data[0] === 'EVENT') {
         this.onEventCallback(data[2]);
       }
