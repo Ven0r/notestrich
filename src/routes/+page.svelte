@@ -9,37 +9,49 @@
 	let publicKey: string | null = null;
 	let profileLoading = true;
 
-	// Use metadata cache directly
 	let userMetadata: { name: string; picture: string } | null = null;
-
 	let feed = [];
-	const relayUrl = 'wss://nostr.land/';
 
-	let nostrRelay: NostrRelay;
+	// Default relays
+	let defaultRelays = ['wss://relay.damus.io'];
+
+	let userRelays: string[] = [];
+	let nostrRelays: NostrRelay[] = [];
 	let metadataService: NostrMetadata;
 	let feedManager: FeedManager;
 
-	function handleEvent(event: any) {
-		if (event.kind === 0) {
-			const content = JSON.parse(event.content || '{}');
-			const metadata = {
+	// Variable to hold the URL of the first relay for display
+	let displayRelayUrl = '';
+
+	// Initialize relays with default ones
+	defaultRelays.forEach((url) => {
+		nostrRelays.push(new NostrRelay(url, handleEvent));
+	});
+
+	async function handleEvent(event: any) {
+		if (event.kind === 0 && event.pubkey === publicKey) {
+			// Parse the content of the event
+			let content = JSON.parse(event.content || '{}');
+			let metadata = {
 				name: content.name || 'Anonymous',
 				picture: content.picture || '/default-profile.jpg'
 			};
 
+			// Update the metadata in the service
 			metadataService.updateMetadata(event.pubkey, metadata);
 
-			// Update local state if it's the current user
-			if (event.pubkey === publicKey) {
-				userMetadata = metadata;
-			}
+			// Update local state for the current user
+			userMetadata = metadata;
+
+			// Store or update metadata in local storage for the current user
+			localStorage.setItem(publicKey, JSON.stringify(metadata));
 		} else if (event.kind === 1) {
 			feedManager.addNote(event);
 			feed = feedManager.getFeed();
 		}
 	}
 
-	const loginWithNostr = async () => {
+	async function loginWithNostr() {
 		if (!window.nostr) {
 			alert('Nostr browser extension not found!');
 			return;
@@ -50,32 +62,50 @@
 			isLoggedIn = true;
 			profileLoading = true;
 
-			// Initialize services
-			nostrRelay = new NostrRelay(relayUrl, handleEvent);
-			metadataService = new NostrMetadata(nostrRelay);
+			// Fetch user's relay list using NIP-07
+			let userRelayList = await window.nostr.getRelays();
+			userRelays = Object.keys(userRelayList);
+
+			// If user has relays, use them; otherwise, use default relays
+			if (userRelays.length > 0) {
+				nostrRelays = userRelays.map((url) => new NostrRelay(url, handleEvent));
+			}
+
+			// Initialize services with the appropriate list of relays
+			metadataService = new NostrMetadata(nostrRelays);
 			feedManager = new FeedManager(metadataService);
 
-			// Connect to relay
-			nostrRelay.connect();
-			await nostrRelay.waitForConnection();
+			// Connect to all relays
+			for (let relay of nostrRelays) {
+				relay.connect();
+				await relay.waitForConnection();
+				// Set the display relay URL to the first relay's URL
+				if (!displayRelayUrl) {
+					displayRelayUrl = relay.relayUrl.replace('wss://', '');
+				}
+			}
 
 			// Get user metadata (waits for the metadata to arrive)
 			userMetadata = await metadataService.getMetadata(publicKey);
 
 			// Set up feed subscriptions
-			nostrRelay.subscribe('feed', {
-				kinds: [1],
-				since: Math.floor(Date.now() / 1000) - 3600
+			nostrRelays.forEach((relay) => {
+				relay.subscribe('feed', {
+					kinds: [1],
+					since: Math.floor(Date.now() / 1000) - 3600
+				});
 			});
 		} catch (error) {
 			console.error('Login failed:', error);
 		} finally {
 			profileLoading = false;
 		}
-	};
+	}
 
 	onMount(() => {
-		return () => nostrRelay?.close();
+		return () => {
+			nostrRelays.forEach((relay) => relay.close());
+		};
 	});
 </script>
 
@@ -111,7 +141,6 @@
 					/>
 					<div class="profile-info">
 						<p class="profile-name">{userMetadata?.name || 'Anonymous'}</p>
-						<p class="profile-key">@{publicKey?.substring(0, 12)}...</p>
 					</div>
 				</div>
 			{/if}
@@ -155,7 +184,7 @@
 				<h3 class="stats-title">Network Stats</h3>
 				<div class="stat-item">
 					<span class="stat-label">Relay:</span>
-					<span class="stat-value">{relayUrl.replace('wss://', '')}</span>
+					<span class="stat-value">{displayRelayUrl}</span>
 				</div>
 				<div class="stat-item">
 					<span class="stat-label">Notes Loaded:</span>
@@ -219,12 +248,6 @@
 	.profile-name {
 		font-weight: 600;
 		font-size: 1.1rem;
-	}
-
-	.profile-key {
-		font-size: 0.8rem;
-		color: #94a3b8;
-		margin-top: 0.25rem;
 	}
 
 	/* Middle Pane */

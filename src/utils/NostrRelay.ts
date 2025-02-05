@@ -3,6 +3,7 @@ export class NostrRelay {
   private relayUrl: string;
   private onEventCallback: (event: any) => void;
   private isConnected: boolean = false;
+  private subscriptions: Map<string, any> = new Map(); // Ensure this is defined at class level
 
   constructor(relayUrl: string, onEventCallback: (event: any) => void) {
     this.relayUrl = relayUrl;
@@ -70,6 +71,15 @@ export class NostrRelay {
       this.ws.send(JSON.stringify(['REQ', shortId, filter]));
     } else {
       console.error('WebSocket not connected. Cannot subscribe.');
+    }
+  }
+
+  unsubscribe(subscriptionId: string) {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(['CLOSE', subscriptionId]));
+      this.subscriptions.delete(subscriptionId); // Remove the subscription from our tracking
+    } else {
+      console.error('WebSocket not connected. Cannot unsubscribe.');
     }
   }
 
